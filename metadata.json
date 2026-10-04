@@ -1,0 +1,8 @@
+{
+  "name": "Remix Giao Thời - Tinh hoa từ đất Việt",
+  "description": "Website thương mại điện tử cao cấp cho thương hiệu thủ công mỹ nghệ truyền thống Việt Nam Giao Thời.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
