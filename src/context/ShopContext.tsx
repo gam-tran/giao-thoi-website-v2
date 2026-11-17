@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, CartItem, Order, OrderCustomerInfo, PaymentMethod, UserAccount } from '../types';
 import { INITIAL_PRODUCTS } from '../data/products';
+import { trackGA4Event } from '../utils/ga4';
 
 interface ShopContextType {
   products: Product[];
@@ -177,11 +178,43 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCart([...cart, { product: currentProduct, quantity }]);
     }
 
+      trackGA4Event('add_to_cart', {
+      currency: 'VND',
+      value: currentProduct.price * quantity,
+      items: [
+        {
+          item_id: currentProduct.id,
+          item_name: currentProduct.name,
+          item_category: currentProduct.category,
+          price: currentProduct.price,
+          quantity: quantity,
+        },
+      ],
+    });
+
     showToast(`Đã thêm "${product.name}" vào giỏ hàng`);
     return true;
   };
 
-  const removeFromCart = (productId: string) => {
+    const removeFromCart = (productId: string) => {
+    const removedItem = cart.find(item => item.product.id === productId);
+
+    if (!removedItem) return;
+
+    trackGA4Event('remove_from_cart', {
+      currency: 'VND',
+      value: removedItem.product.price * removedItem.quantity,
+      items: [
+        {
+          item_id: removedItem.product.id,
+          item_name: removedItem.product.name,
+          item_category: removedItem.product.category,
+          price: removedItem.product.price,
+          quantity: removedItem.quantity,
+        },
+      ],
+    });
+
     setCart(cart.filter(item => item.product.id !== productId));
   };
 
