@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
@@ -9,7 +10,7 @@ interface CartDrawerProps {
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ onCheckout }) => {
-    const {
+  const {
     cart,
     isCartOpen,
     setIsCartOpen,
@@ -51,7 +52,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onCheckout }) => {
 
       <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-md bg-[#FAF8F5] text-[#252525] shadow-2xl flex flex-col border-l border-[#E6DECE]">
-          
+
           {/* Header */}
           <div className="p-5 sm:p-6 bg-white border-b border-[#E8DEC9] flex items-center justify-between">
             <div className="flex items-center gap-2.5">
