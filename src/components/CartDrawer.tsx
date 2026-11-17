@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
+import { trackGA4Event } from '../utils/ga4';
 import { formatPrice } from '../data/products';
 
 interface CartDrawerProps {
@@ -8,7 +9,7 @@ interface CartDrawerProps {
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ onCheckout }) => {
-  const {
+    const {
     cart,
     isCartOpen,
     setIsCartOpen,
@@ -17,6 +18,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onCheckout }) => {
     cartTotal,
     cartCount,
   } = useShop();
+
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isCartOpen && !wasOpenRef.current && cart.length > 0) {
+      trackGA4Event('view_cart', {
+        currency: 'VND',
+        value: cartTotal,
+        items: cart.map(item => ({
+          item_id: item.product.id,
+          item_name: item.product.name,
+          item_category: item.product.category,
+          price: item.product.price,
+          quantity: item.quantity,
+        })),
+      });
+    }
+
+    wasOpenRef.current = isCartOpen;
+  }, [isCartOpen, cart, cartTotal]);
 
   if (!isCartOpen) return null;
 
