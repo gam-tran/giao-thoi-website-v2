@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, CheckCircle, MessageSquare, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
+import { trackGA4Event } from '../utils/ga4';
 import { PaymentMethod, OrderCustomerInfo, Order } from '../types';
 import { formatPrice } from '../data/products';
 import { ZALO_URL } from '../config/constants';
@@ -16,7 +17,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
   onOrderSuccess,
 }) => {
-  const { cart, cartTotal, createOrder, user } = useShop();
+    const { cart, cartTotal, createOrder, user } = useShop();
+
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current && cart.length > 0) {
+      trackGA4Event('begin_checkout', {
+        currency: 'VND',
+        value: cartTotal,
+        items: cart.map(item => ({
+          item_id: item.product.id,
+          item_name: item.product.name,
+          item_category: item.product.category,
+          price: item.product.price,
+          quantity: item.quantity,
+        })),
+      });
+    }
+
+    wasOpenRef.current = isOpen;
+  }, [isOpen, cart, cartTotal]);
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
   const [formData, setFormData] = useState<OrderCustomerInfo>({
