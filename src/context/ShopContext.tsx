@@ -265,7 +265,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     );
 
-    setOrders(prev => [newOrder, ...prev]);
+        setOrders(prev => [newOrder, ...prev]);
+
+    trackGA4Event('purchase', {
+      transaction_id: newOrder.id,
+      currency: 'VND',
+      value: newOrder.totalAmount,
+      payment_type: newOrder.paymentMethod,
+      items: newOrder.items.map(item => ({
+        item_id: item.product.id,
+        item_name: item.product.name,
+        item_category: item.product.category,
+        price: item.product.price,
+        quantity: item.quantity,
+      })),
+    });
+
     clearCart();
     return newOrder;
   };
