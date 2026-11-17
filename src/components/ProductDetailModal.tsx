@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Minus, ShoppingBag, Zap, ShieldCheck, Sparkles, MapPin, Layers } from 'lucide-react';
 import { Product } from '../types';
 import { formatPrice } from '../data/products';
 import { useShop } from '../context/ShopContext';
+import { trackGA4Event } from '../utils/ga4';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -15,8 +16,35 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onClose,
   onBuyNow,
 }) => {
-  const { addToCart, products } = useShop();
+    const { addToCart, products } = useShop();
   const [selectedQty, setSelectedQty] = useState(1);
+  const viewedProductIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (product && viewedProductIdRef.current !== product.id) {
+      const currentProduct = products.find(p => p.id === product.id) || product;
+
+      trackGA4Event('view_item', {
+        currency: 'VND',
+        value: currentProduct.price,
+        items: [
+          {
+            item_id: currentProduct.id,
+            item_name: currentProduct.name,
+            item_category: currentProduct.category,
+            price: currentProduct.price,
+            quantity: 1,
+          },
+        ],
+      });
+
+      viewedProductIdRef.current = product.id;
+    }
+
+    if (!product) {
+      viewedProductIdRef.current = null;
+    }
+  }, [product, products]);
 
   if (!product) return null;
 
