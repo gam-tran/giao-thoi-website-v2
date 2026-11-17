@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Minus, ShoppingBag, Zap, ShieldCheck, Sparkles, MapPin, Layers } from 'lucide-react';
 import { Product } from '../types';
 import { formatPrice } from '../data/products';
 import { useShop } from '../context/ShopContext';
+import { trackGA4Event } from '../utils/ga4';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -17,6 +19,33 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 }) => {
   const { addToCart, products } = useShop();
   const [selectedQty, setSelectedQty] = useState(1);
+  const viewedProductIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (product && viewedProductIdRef.current !== product.id) {
+      const currentProduct = products.find(p => p.id === product.id) || product;
+
+      trackGA4Event('view_item', {
+        currency: 'VND',
+        value: currentProduct.price,
+        items: [
+          {
+            item_id: currentProduct.id,
+            item_name: currentProduct.name,
+            item_category: currentProduct.category,
+            price: currentProduct.price,
+            quantity: 1,
+          },
+        ],
+      });
+
+      viewedProductIdRef.current = product.id;
+    }
+
+    if (!product) {
+      viewedProductIdRef.current = null;
+    }
+  }, [product, products]);
 
   if (!product) return null;
 
@@ -39,7 +68,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div className="relative w-full max-w-4xl bg-[#FAF8F5] rounded-3xl border border-[#E7DECE] shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
-        
+
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -52,7 +81,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Content Container */}
         <div className="overflow-y-auto p-5 sm:p-8 lg:p-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
+
             {/* Left Column: Product Image */}
             <div className="lg:col-span-6 space-y-4">
               <div className="relative aspect-square rounded-2xl overflow-hidden border border-[#E9E1D2] bg-white shadow-sm">
@@ -64,6 +93,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     isOutOfStock ? 'grayscale opacity-75' : ''
                   }`}
                 />
+
                 {isOutOfStock && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                     <span className="px-4 py-2 bg-[#1C1B1A] text-white text-sm font-bold uppercase tracking-widest rounded-lg">
@@ -79,6 +109,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <ShieldCheck size={16} className="text-[#9E211D] shrink-0" />
                   <span>100% Thủ công Việt Nam</span>
                 </div>
+
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-white border border-[#ECE5D8]">
                   <Sparkles size={16} className="text-[#9E211D] shrink-0" />
                   <span>Bảo hành hoàn thiện 12 tháng</span>
@@ -124,18 +155,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <div className="mt-6 space-y-2.5 text-xs text-[#5C5347] bg-[#F5EFE3] p-4 rounded-xl border border-[#E6DDCC]">
                     <div className="flex items-start gap-2">
                       <Layers size={14} className="text-[#9E211D] shrink-0 mt-0.5" />
-                      <span><strong>Chất liệu:</strong> {currentProduct.details.material}</span>
+                      <span>
+                        <strong>Chất liệu:</strong> {currentProduct.details.material}
+                      </span>
                     </div>
+
                     <div className="flex items-start gap-2">
                       <MapPin size={14} className="text-[#9E211D] shrink-0 mt-0.5" />
-                      <span><strong>Xuất xứ:</strong> {currentProduct.details.origin}</span>
+                      <span>
+                        <strong>Xuất xứ:</strong> {currentProduct.details.origin}
+                      </span>
                     </div>
+
                     {currentProduct.details.dimensions && (
                       <div className="flex items-start gap-2">
-                        <span className="w-3.5 h-3.5 rounded-full border border-[#9E211D] inline-flex items-center justify-center text-[9px] text-[#9E211D] shrink-0 mt-0.5">d</span>
-                        <span><strong>Kích thước:</strong> {currentProduct.details.dimensions}</span>
+                        <span className="w-3.5 h-3.5 rounded-full border border-[#9E211D] inline-flex items-center justify-center text-[9px] text-[#9E211D] shrink-0 mt-0.5">
+                          d
+                        </span>
+                        <span>
+                          <strong>Kích thước:</strong> {currentProduct.details.dimensions}
+                        </span>
                       </div>
                     )}
+
                     <div className="pt-2 border-t border-[#E8DFC9] text-[#786C5D] font-serif italic text-xs leading-relaxed">
                       💡 <strong>Ý nghĩa văn hóa:</strong> {currentProduct.details.culturalMeaning}
                     </div>
@@ -145,12 +187,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Purchase Controls */}
               <div className="mt-8 pt-6 border-t border-[#ECE4D6] space-y-4">
+
                 {/* Quantity Stepper */}
                 {!isOutOfStock && (
                   <div className="flex items-center gap-4">
                     <span className="text-xs font-semibold uppercase tracking-wider text-[#63594D]">
                       Số lượng:
                     </span>
+
                     <div className="flex items-center border border-[#D5CABB] rounded-lg bg-white">
                       <button
                         onClick={() => setSelectedQty(Math.max(1, selectedQty - 1))}
@@ -159,9 +203,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       >
                         <Minus size={14} />
                       </button>
+
                       <span className="px-4 text-sm font-semibold tabular-nums">
                         {selectedQty}
                       </span>
+
                       <button
                         onClick={() => setSelectedQty(Math.min(currentProduct.stock, selectedQty + 1))}
                         disabled={selectedQty >= currentProduct.stock}
@@ -171,6 +217,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         <Plus size={14} />
                       </button>
                     </div>
+
                     <span className="text-xs text-[#8A7C6B]">
                       (Tối đa {currentProduct.stock} sản phẩm)
                     </span>
@@ -198,12 +245,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </button>
                 </div>
               </div>
-
             </div>
 
           </div>
         </div>
-
       </div>
     </div>
   );

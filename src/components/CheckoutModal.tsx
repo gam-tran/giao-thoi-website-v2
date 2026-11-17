@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { X, CheckCircle, MessageSquare, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
+import { trackGA4Event } from '../utils/ga4';
 import { PaymentMethod, OrderCustomerInfo, Order } from '../types';
 import { formatPrice } from '../data/products';
 import { ZALO_URL } from '../config/constants';
@@ -18,7 +20,28 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 }) => {
   const { cart, cartTotal, createOrder, user } = useShop();
 
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current && cart.length > 0) {
+      trackGA4Event('begin_checkout', {
+        currency: 'VND',
+        value: cartTotal,
+        items: cart.map(item => ({
+          item_id: item.product.id,
+          item_name: item.product.name,
+          item_category: item.product.category,
+          price: item.product.price,
+          quantity: item.quantity,
+        })),
+      });
+    }
+
+    wasOpenRef.current = isOpen;
+  }, [isOpen, cart, cartTotal]);
+
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
+
   const [formData, setFormData] = useState<OrderCustomerInfo>({
     fullName: user?.name || '',
     phoneNumber: user?.phone || '',
@@ -33,21 +56,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const validate = () => {
     const errors: Record<string, string> = {};
-    if (!formData.fullName.trim()) errors.fullName = 'Vui lòng nhập họ và tên';
-    if (!formData.phoneNumber.trim()) errors.phoneNumber = 'Vui lòng nhập số điện thoại';
-    if (!formData.shippingAddress.trim()) errors.shippingAddress = 'Vui lòng nhập địa chỉ giao hàng';
+
+    if (!formData.fullName.trim()) {
+      errors.fullName = 'Vui lòng nhập họ và tên';
+    }
+
+    if (!formData.phoneNumber.trim()) {
+      errors.phoneNumber = 'Vui lòng nhập số điện thoại';
+    }
+
+    if (!formData.shippingAddress.trim()) {
+      errors.shippingAddress = 'Vui lòng nhập địa chỉ giao hàng';
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleCheckoutSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!validate()) return;
 
     const order = createOrder(formData, paymentMethod);
 
     if (paymentMethod === 'ZALO') {
-      // Open Zalo in a new tab as specified
       window.open(ZALO_URL, '_blank', 'noopener,noreferrer');
     }
 
@@ -57,7 +90,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div className="relative w-full max-w-3xl bg-[#FAF8F5] rounded-3xl border border-[#E7DECE] shadow-2xl overflow-hidden my-auto max-h-[94vh] flex flex-col">
-        
+
         {/* Header */}
         <div className="p-5 sm:p-6 bg-white border-b border-[#E8DFC9] flex items-center justify-between">
           <div>
@@ -68,6 +101,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               Giao hàng an toàn và bảo chứng tinh hoa thủ công
             </p>
           </div>
+
           <button
             onClick={onClose}
             className="p-2 rounded-full text-[#7B7062] hover:text-[#1C1B1A] hover:bg-[#F2ECE0] transition-colors cursor-pointer"
@@ -78,7 +112,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleCheckoutSubmit} className="overflow-y-auto p-5 sm:p-8 space-y-8">
-          
+
           {/* Section 1: Customer Information */}
           <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#E9E2D4] space-y-4">
             <h3 className="font-editorial text-sm sm:text-base font-bold text-[#1C1B1A] uppercase tracking-wider flex items-center gap-2">
@@ -98,7 +132,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   placeholder="Nguyễn Văn A"
                   className="w-full px-3.5 py-2.5 rounded-lg border border-[#DDD3C2] text-xs sm:text-sm focus:ring-2 focus:ring-[#9E211D] focus:outline-none bg-[#FAF8F5]"
                 />
-                {formErrors.fullName && <p className="text-[11px] text-rose-600 mt-1">{formErrors.fullName}</p>}
+                {formErrors.fullName && (
+                  <p className="text-[11px] text-rose-600 mt-1">{formErrors.fullName}</p>
+                )}
               </div>
 
               <div>
@@ -112,7 +148,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   placeholder="0912 345 678"
                   className="w-full px-3.5 py-2.5 rounded-lg border border-[#DDD3C2] text-xs sm:text-sm focus:ring-2 focus:ring-[#9E211D] focus:outline-none bg-[#FAF8F5]"
                 />
-                {formErrors.phoneNumber && <p className="text-[11px] text-rose-600 mt-1">{formErrors.phoneNumber}</p>}
+                {formErrors.phoneNumber && (
+                  <p className="text-[11px] text-rose-600 mt-1">{formErrors.phoneNumber}</p>
+                )}
               </div>
             </div>
 
@@ -140,7 +178,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố..."
                 className="w-full px-3.5 py-2.5 rounded-lg border border-[#DDD3C2] text-xs sm:text-sm focus:ring-2 focus:ring-[#9E211D] focus:outline-none bg-[#FAF8F5]"
               />
-              {formErrors.shippingAddress && <p className="text-[11px] text-rose-600 mt-1">{formErrors.shippingAddress}</p>}
+              {formErrors.shippingAddress && (
+                <p className="text-[11px] text-rose-600 mt-1">{formErrors.shippingAddress}</p>
+              )}
             </div>
 
             <div>
@@ -180,6 +220,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </span>
                     </div>
                   </div>
+
                   <span className="font-bold text-[#1C1B1A] tabular-nums">
                     {formatPrice(item.product.price * item.quantity)}
                   </span>
@@ -192,10 +233,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <span>Tạm tính</span>
                 <span className="tabular-nums">{formatPrice(cartTotal)}</span>
               </div>
+
               <div className="flex justify-between">
                 <span>Phí vận chuyển toàn quốc</span>
                 <span className="text-[#2F7E43] font-medium">Miễn phí</span>
               </div>
+
               <div className="pt-2 border-t border-[#EAE2D3] flex justify-between text-base font-bold text-[#1C1B1A]">
                 <span>TỔNG CỘNG</span>
                 <span className="text-[#9E211D] text-lg tabular-nums">{formatPrice(cartTotal)}</span>
@@ -203,7 +246,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Payment Method (STRICTLY 2 METHODS: COD & ZALO) */}
+          {/* Section 3: Payment Method */}
           <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#E9E2D4] space-y-4">
             <h3 className="font-editorial text-sm sm:text-base font-bold text-[#1C1B1A] uppercase tracking-wider flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-[#9E211D] text-white inline-flex items-center justify-center text-xs">3</span>
@@ -211,7 +254,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              
+
               {/* Option 1: COD */}
               <label
                 onClick={() => setPaymentMethod('COD')}
@@ -228,6 +271,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onChange={() => setPaymentMethod('COD')}
                   className="mt-1 accent-[#9E211D]"
                 />
+
                 <div>
                   <div className="flex items-center gap-2">
                     <Truck size={17} className="text-[#9E211D]" />
@@ -257,6 +301,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onChange={() => setPaymentMethod('ZALO')}
                   className="mt-1 accent-[#0068FF]"
                 />
+
                 <div>
                   <div className="flex items-center gap-2">
                     <MessageSquare size={17} className="text-[#0068FF]" />
@@ -269,7 +314,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </p>
                 </div>
               </label>
-
             </div>
 
             {/* Note if Zalo is selected */}
@@ -277,8 +321,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="p-4 rounded-xl bg-[#0068FF]/10 border border-[#0068FF]/20 text-xs text-[#0052CC] leading-relaxed flex items-start gap-3">
                 <CheckCircle size={18} className="shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Bạn sẽ được chuyển tới Zalo để trao đổi với Giao Thời, xác nhận đơn hàng và hoàn tất thanh toán.</p>
-                  <p className="text-[11px] text-[#4A648C] mt-1">Thông tin giỏ hàng sẽ được lưu tự động để tư vấn viên hỗ trợ bạn nhanh nhất.</p>
+                  <p className="font-semibold">
+                    Bạn sẽ được chuyển tới Zalo để trao đổi với Giao Thời, xác nhận đơn hàng và hoàn tất thanh toán.
+                  </p>
+                  <p className="text-[11px] text-[#4A648C] mt-1">
+                    Thông tin giỏ hàng sẽ được lưu tự động để tư vấn viên hỗ trợ bạn nhanh nhất.
+                  </p>
                 </div>
               </div>
             )}
@@ -309,7 +357,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </div>
 
         </form>
-
       </div>
     </div>
   );

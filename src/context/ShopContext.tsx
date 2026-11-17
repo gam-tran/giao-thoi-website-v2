@@ -1,6 +1,15 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, CartItem, Order, OrderCustomerInfo, PaymentMethod, UserAccount } from '../types';
+import {
+  Product,
+  CartItem,
+  Order,
+  OrderCustomerInfo,
+  PaymentMethod,
+  UserAccount,
+} from '../types';
 import { INITIAL_PRODUCTS } from '../data/products';
+import { trackGA4Event } from '../utils/ga4';
 
 interface ShopContextType {
   products: Product[];
@@ -44,16 +53,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const savedStock = localStorage.getItem(STORAGE_KEYS.PRODUCTS_STOCK);
+
       if (savedStock) {
         const stockMap: Record<string, number> = JSON.parse(savedStock);
-        return INITIAL_PRODUCTS.map(p => ({
-          ...p,
-          stock: stockMap[p.id] !== undefined ? stockMap[p.id] : p.stock,
+
+        return INITIAL_PRODUCTS.map(product => ({
+          ...product,
+          stock: stockMap[product.id] !== undefined
+            ? stockMap[product.id]
+            : product.stock,
         }));
       }
     } catch {
       // fallback
     }
+
     return INITIAL_PRODUCTS;
   });
 
@@ -61,19 +75,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const savedCart = localStorage.getItem(STORAGE_KEYS.CART);
+
       if (savedCart) {
         const parsed: CartItem[] = JSON.parse(savedCart);
+
         return parsed.map(item => ({
           ...item,
           product: {
             ...item.product,
-            image: item.product.image.replace(/^\/src\/assets\/images\//, '/images/'),
+            image: item.product.image.replace(
+              /^\/src\/assets\/images\//,
+              '/images/'
+            ),
           },
         }));
       }
     } catch {
       // fallback
     }
+
     return [];
   });
 
@@ -81,15 +101,20 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const savedOrders = localStorage.getItem(STORAGE_KEYS.ORDERS);
+
       if (savedOrders) {
         const parsed: Order[] = JSON.parse(savedOrders);
+
         return parsed.map(order => ({
           ...order,
           items: order.items.map(item => ({
             ...item,
             product: {
               ...item.product,
-              image: item.product.image.replace(/^\/src\/assets\/images\//, '/images/'),
+              image: item.product.image.replace(
+                /^\/src\/assets\/images\//,
+                '/images/'
+              ),
             },
           })),
         }));
@@ -97,6 +122,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // fallback
     }
+
     return [];
   });
 
@@ -104,10 +130,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserAccount | null>(() => {
     try {
       const savedUser = localStorage.getItem(STORAGE_KEYS.USER);
+
       if (savedUser) return JSON.parse(savedUser);
     } catch {
       // fallback
     }
+
     return {
       name: 'Nguyễn Văn An',
       email: 'khachhang@giaothoi.vn',
@@ -137,32 +165,47 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sync stock to localStorage
   useEffect(() => {
     const stockMap: Record<string, number> = {};
-    products.forEach(p => {
-      stockMap[p.id] = p.stock;
+
+    products.forEach(product => {
+      stockMap[product.id] = product.stock;
     });
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS_STOCK, JSON.stringify(stockMap));
+
+    localStorage.setItem(
+      STORAGE_KEYS.PRODUCTS_STOCK,
+      JSON.stringify(stockMap)
+    );
   }, [products]);
 
   const showToast = (message: string) => {
     setToast(message);
+
     setTimeout(() => {
       setToast(prev => (prev === message ? null : prev));
     }, 3200);
   };
 
   const getProductById = (id: string) => {
-    return products.find(p => p.id === id);
+    return products.find(product => product.id === id);
   };
 
+  // Add product to cart and track GA4 event
   const addToCart = (product: Product, quantity = 1): boolean => {
-    const currentProduct = products.find(p => p.id === product.id);
+    const currentProduct = products.find(
+      item => item.id === product.id
+    );
+
     if (!currentProduct || currentProduct.stock <= 0) {
       showToast('Sản phẩm đã hết hàng!');
       return false;
     }
 
-    const existingIndex = cart.findIndex(item => item.product.id === product.id);
-    const currentInCart = existingIndex >= 0 ? cart[existingIndex].quantity : 0;
+    const existingIndex = cart.findIndex(
+      item => item.product.id === product.id
+    );
+
+    const currentInCart = existingIndex >= 0
+      ? cart[existingIndex].quantity
+      : 0;
 
     if (currentInCart + quantity > currentProduct.stock) {
       showToast(`Chỉ còn ${currentProduct.stock} sản phẩm trong kho!`);
@@ -174,19 +217,66 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updated[existingIndex].quantity += quantity;
       setCart(updated);
     } else {
-      setCart([...cart, { product: currentProduct, quantity }]);
+      setCart([
+        ...cart,
+        {
+          product: currentProduct,
+          quantity,
+        },
+      ]);
     }
 
+    trackGA4Event('add_to_cart', {
+      currency: 'VND',
+      value: currentProduct.price * quantity,
+      items: [
+        {
+          item_id: currentProduct.id,
+          item_name: currentProduct.name,
+          item_category: currentProduct.category,
+          price: currentProduct.price,
+          quantity,
+        },
+      ],
+    });
+
     showToast(`Đã thêm "${product.name}" vào giỏ hàng`);
+
     return true;
   };
 
+  // Remove product from cart and track GA4 event
   const removeFromCart = (productId: string) => {
-    setCart(cart.filter(item => item.product.id !== productId));
+    const removedItem = cart.find(
+      item => item.product.id === productId
+    );
+
+    if (!removedItem) return;
+
+    trackGA4Event('remove_from_cart', {
+      currency: 'VND',
+      value: removedItem.product.price * removedItem.quantity,
+      items: [
+        {
+          item_id: removedItem.product.id,
+          item_name: removedItem.product.name,
+          item_category: removedItem.product.category,
+          price: removedItem.product.price,
+          quantity: removedItem.quantity,
+        },
+      ],
+    });
+
+    setCart(
+      cart.filter(item => item.product.id !== productId)
+    );
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
-    const currentProduct = products.find(p => p.id === productId);
+    const currentProduct = products.find(
+      product => product.id === productId
+    );
+
     if (!currentProduct) return;
 
     if (quantity <= 0) {
@@ -199,16 +289,32 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       quantity = currentProduct.stock;
     }
 
-    setCart(cart.map(item => (item.product.id === productId ? { ...item, quantity } : item)));
+    setCart(
+      cart.map(item =>
+        item.product.id === productId
+          ? { ...item, quantity }
+          : item
+      )
+    );
   };
 
   const clearCart = () => {
     setCart([]);
   };
 
-  const createOrder = (customerInfo: OrderCustomerInfo, paymentMethod: PaymentMethod): Order => {
-    const orderId = `GT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const totalAmount = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  // Create order and track GA4 purchase event
+  const createOrder = (
+    customerInfo: OrderCustomerInfo,
+    paymentMethod: PaymentMethod
+  ): Order => {
+    const orderId = `GT-${new Date().getFullYear()}-${Math.floor(
+      1000 + Math.random() * 9000
+    )}`;
+
+    const totalAmount = cart.reduce(
+      (sum, item) => sum + item.product.price * item.quantity,
+      0
+    );
 
     const newOrder: Order = {
       id: orderId,
@@ -223,28 +329,67 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Decrement stock for ordered products
     setProducts(prevProducts =>
       prevProducts.map(product => {
-        const cartItem = cart.find(item => item.product.id === product.id);
+        const cartItem = cart.find(
+          item => item.product.id === product.id
+        );
+
         if (cartItem) {
-          const newStock = Math.max(0, product.stock - cartItem.quantity);
-          return { ...product, stock: newStock };
+          const newStock = Math.max(
+            0,
+            product.stock - cartItem.quantity
+          );
+
+          return {
+            ...product,
+            stock: newStock,
+          };
         }
+
         return product;
       })
     );
 
     setOrders(prev => [newOrder, ...prev]);
+
+    trackGA4Event('purchase', {
+      transaction_id: newOrder.id,
+      currency: 'VND',
+      value: newOrder.totalAmount,
+      payment_type: newOrder.paymentMethod,
+      items: newOrder.items.map(item => ({
+        item_id: item.product.id,
+        item_name: item.product.name,
+        item_category: item.product.category,
+        price: item.product.price,
+        quantity: item.quantity,
+      })),
+    });
+
     clearCart();
+
     return newOrder;
   };
 
   const updateUser = (updated: UserAccount) => {
     setUser(updated);
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updated));
+
+    localStorage.setItem(
+      STORAGE_KEYS.USER,
+      JSON.stringify(updated)
+    );
+
     showToast('Đã lưu thông tin tài khoản');
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = cart.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0
+  );
+
+  const cartCount = cart.reduce(
+    (sum, item) => sum + item.quantity,
+    0
+  );
 
   return (
     <ShopContext.Provider
@@ -283,8 +428,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useShop = () => {
   const context = useContext(ShopContext);
+
   if (!context) {
     throw new Error('useShop must be used within a ShopProvider');
   }
+
   return context;
 };

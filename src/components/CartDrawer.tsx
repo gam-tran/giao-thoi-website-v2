@@ -1,6 +1,8 @@
-import React from 'react';
+
+import React, { useEffect, useRef } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
+import { trackGA4Event } from '../utils/ga4';
 import { formatPrice } from '../data/products';
 
 interface CartDrawerProps {
@@ -18,6 +20,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onCheckout }) => {
     cartCount,
   } = useShop();
 
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isCartOpen && !wasOpenRef.current && cart.length > 0) {
+      trackGA4Event('view_cart', {
+        currency: 'VND',
+        value: cartTotal,
+        items: cart.map(item => ({
+          item_id: item.product.id,
+          item_name: item.product.name,
+          item_category: item.product.category,
+          price: item.product.price,
+          quantity: item.quantity,
+        })),
+      });
+    }
+
+    wasOpenRef.current = isCartOpen;
+  }, [isCartOpen, cart, cartTotal]);
+
   if (!isCartOpen) return null;
 
   return (
@@ -30,7 +52,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onCheckout }) => {
 
       <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-md bg-[#FAF8F5] text-[#252525] shadow-2xl flex flex-col border-l border-[#E6DECE]">
-          
+
           {/* Header */}
           <div className="p-5 sm:p-6 bg-white border-b border-[#E8DEC9] flex items-center justify-between">
             <div className="flex items-center gap-2.5">
